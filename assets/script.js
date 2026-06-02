@@ -229,9 +229,37 @@ function initFormValidation() {
         }
       });
       
-      if (!isValid) {
-        e.preventDefault();
-      }
+      // Submit via AJAX so we can send the visitor to our own Thank-You page.
+      // (Formspree's free plan otherwise shows its generic "Thanks" page.)
+      e.preventDefault();
+      if (!isValid) return;
+
+      var btn = form.querySelector('[type="submit"]');
+      var originalText = btn ? btn.innerHTML : '';
+      if (btn) { btn.disabled = true; btn.innerHTML = 'Sending\u2026'; }
+
+      var nextField = form.querySelector('input[name="_next"]');
+      var next = (nextField && nextField.value) ? nextField.value : '/thank-you/';
+
+      fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' }
+      }).then(function (response) {
+        if (response.ok) {
+          window.location.href = next;
+        } else {
+          return response.json().then(function (data) {
+            var msg = (data && data.errors)
+              ? data.errors.map(function (er) { return er.message; }).join(', ')
+              : 'There was a problem sending your message.';
+            throw new Error(msg);
+          });
+        }
+      }).catch(function (err) {
+        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        alert((err && err.message ? err.message : 'Something went wrong.') + ' You can also call (508) 945-1400.');
+      });
     });
   });
 }
